@@ -1,0 +1,26 @@
+---
+description: Next.js 블로그 스택과 작업 규칙
+alwaysApply: true
+---
+
+# 블로그 프로젝트
+
+단계별 할 일은 `ROADMAP.md`를 본다. 체크박스는 완료 시에만 그 파일에서 갱신한다.
+
+기획이 필요할 때만 `@planner`를 붙인다. 그 대화에서는 코드를 작성하지 않는다.
+
+폴더 위치는 `directory-structure` 규칙을 따른다. `app/` 작업은 `nextjs` 규칙을 따른다.
+공식 문서 링크는 `docs/references.md`를 본다. API를 구현할 때 `@docs/references.md`를 붙인다.
+
+## 스택
+
+- Next.js App Router, TypeScript, Tailwind CSS, import alias `@/*`
+- 패키지 매니저는 pnpm
+- UI는 Shadcn UI / Radix, 애니메이션은 Framer Motion
+- 글 저장소는 Notion API, 배포는 Vercel, 댓글은 Giscus
+
+## 작업 규칙
+
+- 새 코드는 로드맵의 현재 Phase에 맞게 작성한다. 앞 Phase가 비어 있으면 먼저 그걸 한다.
+- 시크릿은 `.env`에만 두고 커밋하지 않는다.
+- 답변과 UI 문구는 한국어로 작성한다.

@@ -1,0 +1,64 @@
+---
+description: Next.js 블로그 폴더와 파일 위치
+alwaysApply: true
+---
+
+# 디렉토리 구조
+
+`create-next-app`에 `--src-dir`를 쓰면 아래 트리를 `src/` 아래에 둔다. 새 파일은 이 위치에만 만든다. 트리를 임의로 바꾸지 않는다.
+
+```
+app/
+  (auth)/
+  (main)/
+  blog/
+    [slug]/
+    page.tsx
+  api/
+    notion/
+components/
+  common/
+    buttons/
+    forms/
+  layouts/
+    MainLayout.tsx
+    BlogLayout.tsx
+    AuthLayout.tsx
+  features/
+    blog/
+      post-card.tsx
+      post-content.tsx
+      post-list.tsx
+    auth/
+  ui/
+lib/
+  notion/
+    client.ts
+    queries.ts
+    transforms.ts
+  utils/
+    date.ts
+    string.ts
+    validation.ts
+hooks/
+  common/
+  features/
+    blog/
+      use-post.ts
+      use-posts.ts
+types/
+  common/
+  notion/
+    database.ts
+    block.ts
+    page.ts
+styles/
+  globals.css
+  markdown.css
+public/
+  images/
+  fonts/
+config/
+  site.ts
+  notion.ts
+```
