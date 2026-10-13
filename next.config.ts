@@ -1,4 +1,6 @@
 import type { NextConfig } from 'next';
+import createMDX from '@next/mdx';
+import remarkGfm from 'remark-gfm';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -19,6 +21,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
 };
 
-export default nextConfig;
+const withMDX = createMDX({
+  options: {
+    // Turbopack은 플러그인 함수를 직렬화하지 못함
+    remarkPlugins: process.env.TURBOPACK ? [] : [remarkGfm],
+  },
+});
+
+export default withMDX(nextConfig);

@@ -1,277 +1,164 @@
-import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
+import { PostContent, getHeadingItems } from '@/components/features/blog/PostContent';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Clock, User } from 'lucide-react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { getPostBySlug, getPublishedPosts, toPosts } from '@/lib/notion';
+import { formatPostDate } from '@/lib/date';
+import { CalendarDays, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-interface TableOfContentsItem {
-  id: string;
-  title: string;
-  items?: TableOfContentsItem[];
+interface BlogPostPageProps {
+  params: Promise<{
+    slug: string;
+  }>;
 }
 
-const mockTableOfContents: TableOfContentsItem[] = [
-  {
-    id: 'intro',
-    title: '소개',
-    items: [],
-  },
-  {
-    id: 'getting-started',
-    title: '시작하기',
-    items: [
-      {
-        id: 'prerequisites',
-        title: '사전 준비사항',
-        items: [
-          {
-            id: 'node-installation',
-            title: 'Node.js 설치',
-          },
-          {
-            id: 'npm-setup',
-            title: 'NPM 설정',
-          },
-        ],
-      },
-      {
-        id: 'project-setup',
-        title: '프로젝트 설정',
-        items: [
-          {
-            id: 'create-project',
-            title: '프로젝트 생성',
-          },
-          {
-            id: 'folder-structure',
-            title: '폴더 구조',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'shadcn-ui-setup',
-    title: 'Shadcn UI 설정하기',
-    items: [
-      {
-        id: 'installation',
-        title: '설치 방법',
-        items: [
-          {
-            id: 'cli-installation',
-            title: 'CLI 도구 설치',
-          },
-          {
-            id: 'component-setup',
-            title: '컴포넌트 설정',
-          },
-        ],
-      },
-      {
-        id: 'configuration',
-        title: '환경 설정',
-        items: [
-          {
-            id: 'theme-setup',
-            title: '테마 설정',
-          },
-          {
-            id: 'typography',
-            title: '타이포그래피',
-          },
-        ],
-      },
-    ],
-  },
-];
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const detail = await getPostBySlug(slug);
 
-function TableOfContentsLink({ item }: { item: TableOfContentsItem }) {
-  return (
-    <div className="space-y-2">
-      <Link
-        key={item.id}
-        href={`#${item.id}`}
-        className={`hover:text-foreground text-muted-foreground block font-medium transition-colors`}
-      >
-        {item.title}
-      </Link>
-      {item.items && item.items.length > 0 && (
-        <div className="space-y-2 pl-4">
-          {item.items.map((subItem) => (
-            <TableOfContentsLink key={subItem.id} item={subItem} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  if (!detail) {
+    return { title: '글을 찾을 수 없습니다' };
+  }
+
+  return {
+    title: detail.post.title,
+    description: detail.post.description,
+  };
 }
 
-export default function BlogPost() {
+export default async function BlogPost({ params }: BlogPostPageProps) {
+  const { slug } = await params;
+  const [detail, published] = await Promise.all([getPostBySlug(slug), getPublishedPosts()]);
+
+  if (!detail) {
+    notFound();
+  }
+
+  const { post, blocks } = detail;
+  const headings = getHeadingItems(blocks);
+  const posts = toPosts(published.results);
+  const currentIndex = posts.findIndex((item) => item.slug === post.slug || item.id === post.id);
+  const previousPost = currentIndex > 0 ? posts[currentIndex - 1] : null;
+  const nextPost = currentIndex >= 0 ? posts[currentIndex + 1] : null;
+  // const readingMinutes = Math.max(1, Math.ceil(detail.markdown.replace(/\s/g, '').length / 500));
+
   return (
     <div className="container py-12">
       <div className="grid grid-cols-[240px_1fr_240px] gap-8">
-        <aside>{/* 추후 컨텐츠 추가 */}</aside>
+        <aside />
         <section>
-          {/* 블로그 헤더 */}
           <div className="space-y-4">
+            {post.coverImage && (
+              <div className="relative aspect-2/1 overflow-hidden rounded-xl">
+                <Image src={post.coverImage} alt={post.title} fill className="object-cover" />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Badge>프론트엔드</Badge>
-              <h1 className="text-4xl font-bold">Next.js와 Shadcn UI로 블로그 만들기</h1>
+              <div className="flex flex-wrap gap-2">
+                {post.tags?.map((tag) => (
+                  <Badge key={tag}>{tag}</Badge>
+                ))}
+              </div>
+              <h1 className="text-3xl font-bold">{post.title}</h1>
             </div>
 
-            {/* 메타 정보 */}
-            <div className="text-muted-foreground flex gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <User className="size-4" />
-                <span>홍길동</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <CalendarDays className="size-4" />
-                <span>2024년 3월 15일</span>
-              </div>
-              <div className="flex items-center gap-1">
+            <div className="text-muted-foreground flex flex-wrap gap-4 text-sm">
+              {post.author && (
+                <div className="flex items-center gap-1">
+                  <User className="size-4" />
+                  <span>{post.author}</span>
+                </div>
+              )}
+              {post.date && (
+                <div className="flex items-center gap-1">
+                  <CalendarDays className="size-4" />
+                  <span>{formatPostDate(post.date)}</span>
+                </div>
+              )}
+              {/* <div className="flex items-center gap-1">
                 <Clock className="size-4" />
-                <span>5분 읽기</span>
-              </div>
+                <span>{readingMinutes}분 읽기</span>
+              </div> */}
             </div>
           </div>
 
           <Separator className="my-8" />
 
-          {/* 블로그 본문 */}
-          <div className="prose prose-slate dark:prose-invert max-w-none">
-            <p className="lead">
-              Next.js와 Shadcn UI를 사용하여 모던하고 아름다운 블로그를 만드는 방법을
-              알아보겠습니다. 이 튜토리얼에서는 기본적인 설정부터 배포까지 전 과정을 다룹니다.
-            </p>
-
-            <h2>시작하기</h2>
-            <p>
-              Next.js는 React 기반의 풀스택 웹 프레임워크입니다. 서버 사이드 렌더링, 정적 사이트
-              생성 등 다양한 렌더링 전략을 제공하며, 개발자 경험을 극대화시켜주는 여러 기능들을
-              제공합니다.
-            </p>
-
-            <h2>Shadcn UI 설정하기</h2>
-            <p>
-              Shadcn UI는 재사용 가능한 컴포넌트 모음으로, 아름다운 디자인과 접근성을 모두 갖추고
-              있습니다. 컴포넌트를 직접 소유할 수 있어 커스터마이징이 자유롭다는 장점이 있습니다.
-            </p>
-            <p className="lead">
-              Next.js와 Shadcn UI를 사용하여 모던하고 아름다운 블로그를 만드는 방법을
-              알아보겠습니다. 이 튜토리얼에서는 기본적인 설정부터 배포까지 전 과정을 다룹니다.
-            </p>
-
-            <h2>시작하기</h2>
-            <p>
-              Next.js는 React 기반의 풀스택 웹 프레임워크입니다. 서버 사이드 렌더링, 정적 사이트
-              생성 등 다양한 렌더링 전략을 제공하며, 개발자 경험을 극대화시켜주는 여러 기능들을
-              제공합니다.
-            </p>
-
-            <h2>Shadcn UI 설정하기</h2>
-            <p>
-              Shadcn UI는 재사용 가능한 컴포넌트 모음으로, 아름다운 디자인과 접근성을 모두 갖추고
-              있습니다. 컴포넌트를 직접 소유할 수 있어 커스터마이징이 자유롭다는 장점이 있습니다.
-            </p>
-            <p className="lead">
-              Next.js와 Shadcn UI를 사용하여 모던하고 아름다운 블로그를 만드는 방법을
-              알아보겠습니다. 이 튜토리얼에서는 기본적인 설정부터 배포까지 전 과정을 다룹니다.
-            </p>
-
-            <h2>시작하기</h2>
-            <p>
-              Next.js는 React 기반의 풀스택 웹 프레임워크입니다. 서버 사이드 렌더링, 정적 사이트
-              생성 등 다양한 렌더링 전략을 제공하며, 개발자 경험을 극대화시켜주는 여러 기능들을
-              제공합니다.
-            </p>
-
-            <h2>Shadcn UI 설정하기</h2>
-            <p>
-              Shadcn UI는 재사용 가능한 컴포넌트 모음으로, 아름다운 디자인과 접근성을 모두 갖추고
-              있습니다. 컴포넌트를 직접 소유할 수 있어 커스터마이징이 자유롭다는 장점이 있습니다.
-            </p>
-            <p className="lead">
-              Next.js와 Shadcn UI를 사용하여 모던하고 아름다운 블로그를 만드는 방법을
-              알아보겠습니다. 이 튜토리얼에서는 기본적인 설정부터 배포까지 전 과정을 다룹니다.
-            </p>
-
-            <h2>시작하기</h2>
-            <p>
-              Next.js는 React 기반의 풀스택 웹 프레임워크입니다. 서버 사이드 렌더링, 정적 사이트
-              생성 등 다양한 렌더링 전략을 제공하며, 개발자 경험을 극대화시켜주는 여러 기능들을
-              제공합니다.
-            </p>
-
-            <h2>Shadcn UI 설정하기</h2>
-            <p>
-              Shadcn UI는 재사용 가능한 컴포넌트 모음으로, 아름다운 디자인과 접근성을 모두 갖추고
-              있습니다. 컴포넌트를 직접 소유할 수 있어 커스터마이징이 자유롭다는 장점이 있습니다.
-            </p>
-            <p className="lead">
-              Next.js와 Shadcn UI를 사용하여 모던하고 아름다운 블로그를 만드는 방법을
-              알아보겠습니다. 이 튜토리얼에서는 기본적인 설정부터 배포까지 전 과정을 다룹니다.
-            </p>
-
-            <h2>시작하기</h2>
-            <p>
-              Next.js는 React 기반의 풀스택 웹 프레임워크입니다. 서버 사이드 렌더링, 정적 사이트
-              생성 등 다양한 렌더링 전략을 제공하며, 개발자 경험을 극대화시켜주는 여러 기능들을
-              제공합니다.
-            </p>
-
-            <h2>Shadcn UI 설정하기</h2>
-            <p>
-              Shadcn UI는 재사용 가능한 컴포넌트 모음으로, 아름다운 디자인과 접근성을 모두 갖추고
-              있습니다. 컴포넌트를 직접 소유할 수 있어 커스터마이징이 자유롭다는 장점이 있습니다.
-            </p>
-          </div>
+          <article className="prose prose-sm prose-neutral dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-primary prose-img:rounded-xl max-w-none">
+            {post.description && <p className="lead">{post.description}</p>}
+            <PostContent blocks={blocks} />
+          </article>
 
           <Separator className="my-16" />
 
-          {/* 이전/다음 포스트 네비게이션 */}
           <nav className="grid grid-cols-2 gap-8">
-            <Link href="/blog/previous-post">
-              <Card className="group hover:bg-muted/50 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base font-medium">
-                    <ChevronLeft className="size-4" />
-                    <span>시작하기</span>
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    Next.js를 시작하는 방법부터 프로젝트 구조, 기본 설정까지 상세히 알아봅니다.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
+            {previousPost ? (
+              <Link href={`/blog/${previousPost.slug}`}>
+                <Card className="group hover:bg-muted/50 transition-colors">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <ChevronLeft className="size-4" />
+                      <span>{previousPost.title}</span>
+                    </CardTitle>
+                    {previousPost.description && (
+                      <CardDescription className="line-clamp-2">
+                        {previousPost.description}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                </Card>
+              </Link>
+            ) : (
+              <div />
+            )}
 
-            <Link href="/blog/next-post" className="text-right">
-              <Card className="group hover:bg-muted/50 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-end gap-2 text-base font-medium">
-                    <span>심화 가이드</span>
-                    <ChevronRight className="size-4" />
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2">
-                    Next.js의 고급 기능들을 활용하여 더 나은 웹 애플리케이션을 만드는 방법을
-                    소개합니다.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
+            {nextPost ? (
+              <Link href={`/blog/${nextPost.slug}`} className="text-right">
+                <Card className="group hover:bg-muted/50 transition-colors">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-end gap-2 text-base font-medium">
+                      <span>{nextPost.title}</span>
+                      <ChevronRight className="size-4" />
+                    </CardTitle>
+                    {nextPost.description && (
+                      <CardDescription className="line-clamp-2">
+                        {nextPost.description}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                </Card>
+              </Link>
+            ) : (
+              <div />
+            )}
           </nav>
         </section>
         <aside className="relative">
           <div className="sticky top-(--sticky-top)">
             <div className="bg-muted/50 space-y-4 rounded-lg p-6 backdrop-blur-sm">
               <h3 className="text-lg font-semibold">목차</h3>
-              <nav className="space-y-3 text-sm">
-                {mockTableOfContents.map((item) => (
-                  <TableOfContentsLink key={item.id} item={item} />
-                ))}
-              </nav>
+              {headings.length === 0 ? (
+                <p className="text-muted-foreground text-sm">목차가 없습니다.</p>
+              ) : (
+                <nav className="space-y-3 text-sm">
+                  {headings.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`#${item.id}`}
+                      className={`hover:text-foreground text-muted-foreground block font-medium transition-colors ${
+                        item.level === 3 ? 'pl-4' : item.level === 2 ? 'pl-2' : ''
+                      }`}
+                    >
+                      {item.title}
+                    </Link>
+                  ))}
+                </nav>
+              )}
             </div>
           </div>
         </aside>
